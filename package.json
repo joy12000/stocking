@@ -1,0 +1,24 @@
+{
+  "name": "stockpulse",
+  "version": "1.0.0",
+  "description": "글로벌 뉴스 + 주가 데이터 → AI 분석 → 매일 아침 종목 추천 웹앱",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "start": "npm run start --workspace=frontend",
+    "lint": "npm run lint --workspace=frontend",
+    "ai-server": "npm run dev --workspace=backend",
+    "collector": "npm run dev --workspace=data-collector"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
