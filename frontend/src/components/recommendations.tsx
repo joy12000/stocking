@@ -6,11 +6,14 @@ import { supabase } from '@/lib/supabase'
 import { Recommendation, Stock } from '@/types'
 import { formatCurrency, formatPercent, getRecommendationColor, getRecommendationLabel, cn } from '@/lib/utils'
 import { LoadingCard } from './loading-spinner'
+import { StockDetailModal } from './stock-detail-modal'
 
 export function Recommendations() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'US' | 'KR'>('US')
+  const [selectedRecommendation, setSelectedRecommendation] = useState<Recommendation | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     fetchRecommendations()
@@ -20,20 +23,20 @@ export function Recommendations() {
     try {
       setLoading(true)
       
-      // Mock data for development
-      const mockRecommendations = [
+      // 탭별로 다른 Mock 데이터 생성
+      const mockRecommendations = activeTab === 'US' ? [
         {
           id: 1,
           stock_id: 1,
           score: 0.85,
-          reason: '강한 상승 모멘텀과 긍정적 뉴스 감성',
+          reason: '강한 상승 모멘텀과 긍정적 뉴스 감성. AI 칩 수요 증가로 인한 성장 전망이 밝으며, 최근 실적 발표에서 예상을 상회하는 결과를 보였습니다.',
           recommended_date: new Date().toISOString().split('T')[0],
           created_at: new Date().toISOString(),
           stock: {
             id: 1,
             ticker: 'AAPL',
             name: 'Apple Inc.',
-            market: activeTab,
+            market: 'US' as const,
             created_at: new Date().toISOString()
           }
         },
@@ -41,14 +44,75 @@ export function Recommendations() {
           id: 2,
           stock_id: 2,
           score: 0.78,
-          reason: '기술적 지표 양호 및 거래량 증가',
+          reason: '기술적 지표 양호 및 거래량 증가. 클라우드 서비스 부문의 지속적인 성장과 AI 기술 투자 확대로 인한 장기적 성장 동력이 확보되었습니다.',
           recommended_date: new Date().toISOString().split('T')[0],
           created_at: new Date().toISOString(),
           stock: {
             id: 2,
             ticker: 'MSFT',
             name: 'Microsoft Corporation',
-            market: activeTab,
+            market: 'US' as const,
+            created_at: new Date().toISOString()
+          }
+        },
+        {
+          id: 3,
+          stock_id: 3,
+          score: 0.72,
+          reason: 'GPU 시장 독점적 지위 유지. 데이터센터 및 AI 훈련용 칩 수요 급증으로 매출 성장세가 지속되고 있으며, 향후 전망도 긍정적입니다.',
+          recommended_date: new Date().toISOString().split('T')[0],
+          created_at: new Date().toISOString(),
+          stock: {
+            id: 3,
+            ticker: 'NVDA',
+            name: 'NVIDIA Corporation',
+            market: 'US' as const,
+            created_at: new Date().toISOString()
+          }
+        }
+      ] : [
+        {
+          id: 4,
+          stock_id: 4,
+          score: 0.82,
+          reason: '반도체 업황 회복 신호와 메모리 가격 상승. 글로벌 메모리 반도체 시장에서의 기술 우위를 바탕으로 수익성 개선이 기대됩니다.',
+          recommended_date: new Date().toISOString().split('T')[0],
+          created_at: new Date().toISOString(),
+          stock: {
+            id: 4,
+            ticker: '삼성전자',
+            name: '삼성전자',
+            market: 'KR' as const,
+            created_at: new Date().toISOString()
+          }
+        },
+        {
+          id: 5,
+          stock_id: 5,
+          score: 0.75,
+          reason: '2차전지 시장 성장과 ESS 사업 확장. 전기차 시장 성장에 따른 배터리 수요 증가와 에너지저장시스템 사업의 본격적인 성장이 예상됩니다.',
+          recommended_date: new Date().toISOString().split('T')[0],
+          created_at: new Date().toISOString(),
+          stock: {
+            id: 5,
+            ticker: 'LG에너지솔루션',
+            name: 'LG에너지솔루션',
+            market: 'KR' as const,
+            created_at: new Date().toISOString()
+          }
+        },
+        {
+          id: 6,
+          stock_id: 6,
+          score: 0.69,
+          reason: '바이오 신약 개발 파이프라인 강화. 항암제 및 면역치료제 개발 진전으로 장기적 성장 가능성이 높아지고 있습니다.',
+          recommended_date: new Date().toISOString().split('T')[0],
+          created_at: new Date().toISOString(),
+          stock: {
+            id: 6,
+            ticker: '삼성바이오로직스',
+            name: '삼성바이오로직스',
+            market: 'KR' as const,
             created_at: new Date().toISOString()
           }
         }
@@ -60,6 +124,16 @@ export function Recommendations() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDetailClick = (recommendation: Recommendation) => {
+    setSelectedRecommendation(recommendation)
+    setIsModalOpen(true)
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setSelectedRecommendation(null)
   }
 
   const getTrendIcon = (score: number) => {
@@ -132,10 +206,10 @@ export function Recommendations() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="font-semibold text-gray-900 text-lg">
-                    {rec.stock?.ticker}
+                    {activeTab === 'KR' ? rec.stock?.name : rec.stock?.ticker}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    {rec.stock?.name}
+                    {activeTab === 'KR' ? rec.stock?.ticker : rec.stock?.name}
                   </p>
                 </div>
                 <div className="flex items-center space-x-1">
@@ -158,19 +232,31 @@ export function Recommendations() {
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-sm text-gray-700">
+                  <p className="text-sm text-gray-700 line-clamp-3">
                     {rec.reason}
                   </p>
                 </div>
 
-                <button className="w-full btn-primary text-sm">
+                <button 
+                  onClick={() => handleDetailClick(rec)}
+                  className="w-full btn-primary text-sm hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center"
+                >
                   상세 분석 보기
-                  <ExternalLink className="w-4 h-4 ml-1" />
+                  <ExternalLink className="w-4 h-4 ml-2" />
                 </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* 상세보기 모달 */}
+      {selectedRecommendation && (
+        <StockDetailModal
+          recommendation={selectedRecommendation}
+          isOpen={isModalOpen}
+          onClose={closeModal}
+        />
       )}
     </section>
   )

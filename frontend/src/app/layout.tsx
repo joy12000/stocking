@@ -14,8 +14,12 @@ export const metadata: Metadata = {
   themeColor: '#3b82f6',
   manifest: '/manifest.json',
   icons: {
-    icon: '/icon-192x192.png',
+    icon: [
+      { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512x512.png', sizes: '512x512', type: 'image/png' }
+    ],
     apple: '/icon-192x192.png',
+    shortcut: '/icon-192x192.png'
   },
 }
 

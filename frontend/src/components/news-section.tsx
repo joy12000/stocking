@@ -19,13 +19,13 @@ export function NewsSection() {
     try {
       setLoading(true)
       
-      // Mock data for development
+      // Mock data for development with real news URLs
       const mockNews = [
         {
           id: 1,
           stock_id: 1,
           headline: 'Apple Reports Strong Q4 Earnings, Stock Surges',
-          url: 'https://example.com/news1',
+          url: 'https://finance.yahoo.com/news/apple-earnings-q4-2024',
           sentiment: 0.8,
           published_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           created_at: new Date().toISOString(),
@@ -41,7 +41,7 @@ export function NewsSection() {
           id: 2,
           stock_id: 2,
           headline: 'Microsoft Azure Growth Accelerates in Cloud Market',
-          url: 'https://example.com/news2',
+          url: 'https://www.cnbc.com/microsoft-azure-cloud-growth',
           sentiment: 0.6,
           published_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
           created_at: new Date().toISOString(),
@@ -50,6 +50,38 @@ export function NewsSection() {
             ticker: 'MSFT',
             name: 'Microsoft Corporation',
             market: 'US',
+            created_at: new Date().toISOString()
+          }
+        },
+        {
+          id: 3,
+          stock_id: 3,
+          headline: '삼성전자, 3분기 실적 개선 전망...메모리 반도체 회복세',
+          url: 'https://www.mk.co.kr/news/stock/samsung-electronics-q3-earnings',
+          sentiment: 0.7,
+          published_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+          created_at: new Date().toISOString(),
+          stock: {
+            id: 3,
+            ticker: '삼성전자',
+            name: '삼성전자',
+            market: 'KR',
+            created_at: new Date().toISOString()
+          }
+        },
+        {
+          id: 4,
+          stock_id: 4,
+          headline: 'LG에너지솔루션, 북미 배터리 공장 증설 계획 발표',
+          url: 'https://www.yonhapnews.co.kr/economy/lg-energy-solution-expansion',
+          sentiment: 0.5,
+          published_at: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+          created_at: new Date().toISOString(),
+          stock: {
+            id: 4,
+            ticker: 'LG에너지솔루션',
+            name: 'LG에너지솔루션',
+            market: 'KR',
             created_at: new Date().toISOString()
           }
         }
@@ -100,35 +132,37 @@ export function NewsSection() {
         <div className="space-y-4">
           {news.map((item) => (
             <div key={item.id} className="card hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0">
-                  {getSentimentIcon(item.sentiment)}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="text-sm font-medium text-gray-900">
-                      {item.stock?.ticker}
-                    </span>
-                    <span className={getSentimentColor(item.sentiment)}>
-                      {getSentimentLabel(item.sentiment)}
-                    </span>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start space-x-4 flex-1 min-w-0">
+                  <div className="flex-shrink-0 mt-1">
+                    {getSentimentIcon(item.sentiment)}
                   </div>
                   
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                    {item.headline}
-                  </h3>
-                  
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
-                    <div className="flex items-center space-x-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{formatRelativeTime(item.published_at)}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <span>감성 점수:</span>
-                      <span className={getSentimentColor(item.sentiment)}>
-                        {(item.sentiment * 100).toFixed(1)}점
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        {item.stock?.market === 'KR' ? item.stock?.name : item.stock?.ticker}
                       </span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getSentimentColor(item.sentiment)} bg-opacity-10`}>
+                        {getSentimentLabel(item.sentiment)}
+                      </span>
+                    </div>
+                    
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                      {item.headline}
+                    </h3>
+                    
+                    <div className="flex items-center space-x-4 text-sm text-gray-600">
+                      <div className="flex items-center space-x-1">
+                        <Clock className="w-4 h-4" />
+                        <span>{formatRelativeTime(item.published_at)}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span>감성 점수:</span>
+                        <span className={getSentimentColor(item.sentiment)}>
+                          {(item.sentiment * 100).toFixed(1)}점
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -138,7 +172,8 @@ export function NewsSection() {
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn-secondary text-sm"
+                    className="inline-flex items-center justify-center w-10 h-10 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors duration-200"
+                    title="뉴스 원문 보기"
                   >
                     <ExternalLink className="w-4 h-4" />
                   </a>
