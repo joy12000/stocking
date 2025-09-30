@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, TrendingUp, TrendingDown, BarChart3, Calendar, Target } from 'lucide-react'
+import { X, TrendingUp, TrendingDown, BarChart3, Calendar, Target, Loader2 } from 'lucide-react'
 import { Recommendation } from '@/types'
 import { formatPercent, getRecommendationColor, getRecommendationLabel, cn } from '@/lib/utils'
+import { getCachedStockPrice } from '@/lib/stockApi'
 
 interface StockDetailModalProps {
   recommendation: Recommendation
@@ -12,14 +13,58 @@ interface StockDetailModalProps {
 }
 
 export function StockDetailModal({ recommendation, isOpen, onClose }: StockDetailModalProps) {
+  const [isLoading, setIsLoading] = useState(true)
+  const [priceData, setPriceData] = useState<{
+    currentPrice: number
+    priceChange: number
+    priceChangePercent: number
+    open: number
+    high: number
+    low: number
+    volume: number
+  } | null>(null)
   const [analysisData, setAnalysisData] = useState({
     technicalScore: 0.75,
     sentimentScore: 0.82,
     volumeScore: 0.68,
     priceTarget: recommendation.stock?.market === 'KR' ? 85000 : 180.50,
-    currentPrice: recommendation.stock?.market === 'KR' ? 78500 : 175.20,
-    expectedReturn: 8.3
   })
+
+  useEffect(() => {
+    const fetchStockData = async () => {
+      if (!isOpen) return
+      
+      try {
+        setIsLoading(true)
+        const stockPrice = await getCachedStockPrice(
+          recommendation.stock?.ticker || '',
+          recommendation.stock?.market || 'US'
+        )
+        
+        if (stockPrice) {
+          const currentPrice = stockPrice.close
+          const priceChange = analysisData.priceTarget - currentPrice
+          const priceChangePercent = (priceChange / currentPrice) * 100
+          
+          setPriceData({
+            currentPrice,
+            priceChange,
+            priceChangePercent,
+            open: stockPrice.open,
+            high: stockPrice.high,
+            low: stockPrice.low,
+            volume: stockPrice.volume
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching stock data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchStockData()
+  }, [isOpen, recommendation.stock?.ticker, recommendation.stock?.market, analysisData.priceTarget])
 
   useEffect(() => {
     if (isOpen) {
@@ -36,8 +81,7 @@ export function StockDetailModal({ recommendation, isOpen, onClose }: StockDetai
   if (!isOpen) return null
 
   const currency = recommendation.stock?.market === 'KR' ? '원' : '$'
-  const priceChange = analysisData.priceTarget - analysisData.currentPrice
-  const priceChangePercent = (priceChange / analysisData.currentPrice) * 100
+  const volumeSuffix = recommendation.stock?.market === 'KR' ? '주' : ''
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -54,137 +98,177 @@ export function StockDetailModal({ recommendation, isOpen, onClose }: StockDetai
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            aria-label="Close modal"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
 
         <div className="p-6 space-y-6">
-          {/* 추천 점수 */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold text-gray-900">추천 점수</h3>
-              <div className="flex items-center space-x-2">
-                {recommendation.score >= 0.7 ? (
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                ) : (
-                  <TrendingDown className="w-5 h-5 text-red-600" />
-                )}
-                <span className={cn(
-                  'text-lg font-bold',
-                  getRecommendationColor(recommendation.score)
-                )}>
-                  {(recommendation.score * 100).toFixed(1)}점
-                </span>
-              </div>
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div
-                className={cn(
-                  'h-3 rounded-full transition-all duration-300',
-                  recommendation.score >= 0.7 ? 'bg-green-500' : 
-                  recommendation.score >= 0.4 ? 'bg-yellow-500' : 'bg-red-500'
-                )}
-                style={{ width: `${recommendation.score * 100}%` }}
-              />
-            </div>
-            <p className="text-sm text-gray-600 mt-2">
-              {getRecommendationLabel(recommendation.score)} 등급
-            </p>
-          </div>
-
-          {/* 가격 정보 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <BarChart3 className="w-5 h-5 text-blue-600" />
-                <h4 className="font-semibold text-gray-900">현재가</h4>
-              </div>
-              <p className="text-2xl font-bold text-gray-900">
-                {analysisData.currentPrice.toLocaleString()}{currency}
-              </p>
-            </div>
-            
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <Target className="w-5 h-5 text-green-600" />
-                <h4 className="font-semibold text-gray-900">목표가</h4>
-              </div>
-              <p className="text-2xl font-bold text-green-600">
-                {analysisData.priceTarget.toLocaleString()}{currency}
-              </p>
-              <p className="text-sm text-green-600">
-                {formatPercent(priceChangePercent)} 상승 여력
-              </p>
-            </div>
-          </div>
-
-          {/* 분석 지표 */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">상세 분석</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">기술적 분석</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-500 h-2 rounded-full"
-                      style={{ width: `${analysisData.technicalScore * 100}%` }}
-                    />
+          ) : (
+            <>
+              {/* 추천 점수 */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900">추천 점수</h3>
+                  <div className="flex items-center space-x-2">
+                    {recommendation.score >= 0.7 ? (
+                      <TrendingUp className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <TrendingDown className="w-5 h-5 text-red-600" />
+                    )}
+                    <span className={cn(
+                      'text-lg font-bold',
+                      getRecommendationColor(recommendation.score)
+                    )}>
+                      {(recommendation.score * 100).toFixed(1)}점
+                    </span>
                   </div>
-                  <span className="text-sm font-medium">
-                    {(analysisData.technicalScore * 100).toFixed(0)}%
-                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className={cn(
+                      'h-3 rounded-full transition-all duration-300',
+                      recommendation.score >= 0.7 ? 'bg-green-500' : 
+                      recommendation.score >= 0.4 ? 'bg-yellow-500' : 'bg-red-500'
+                    )}
+                    style={{ width: `${recommendation.score * 100}%` }}
+                  />
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  {getRecommendationLabel(recommendation.score)} 등급
+                </p>
+              </div>
+
+              {/* 가격 정보 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <BarChart3 className="w-5 h-5 text-blue-600" />
+                    <h4 className="font-semibold text-gray-900">현재가</h4>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {priceData?.currentPrice.toLocaleString()}{currency}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                    <div className="text-gray-600">시가</div>
+                    <div>{priceData?.open.toLocaleString()}{currency}</div>
+                    <div className="text-gray-600">고가</div>
+                    <div className="text-red-600">{priceData?.high.toLocaleString()}{currency}</div>
+                    <div className="text-gray-600">저가</div>
+                    <div className="text-blue-600">{priceData?.low.toLocaleString()}{currency}</div>
+                    <div className="text-gray-600">거래량</div>
+                    <div>{priceData?.volume.toLocaleString()}{volumeSuffix}</div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Target className="w-5 h-5 text-green-600" />
+                    <h4 className="font-semibold text-gray-900">목표가</h4>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600">
+                    {analysisData.priceTarget.toLocaleString()}{currency}
+                  </p>
+                  {priceData && (
+                    <div className="mt-2">
+                      <p className="text-sm">
+                        <span className="text-gray-600">예상 수익률: </span>
+                        <span className={cn(
+                          'font-medium',
+                          priceData.priceChangePercent >= 0 ? 'text-red-600' : 'text-blue-600'
+                        )}>
+                          {priceData.priceChangePercent >= 0 ? '+' : ''}
+                          {priceData.priceChangePercent.toFixed(2)}%
+                        </span>
+                      </p>
+                      <p className="text-sm">
+                        <span className="text-gray-600">목표가 대비: </span>
+                        <span className={cn(
+                          'font-medium',
+                          priceData.priceChange >= 0 ? 'text-red-600' : 'text-blue-600'
+                        )}>
+                          {priceData.priceChange >= 0 ? '+' : ''}
+                          {priceData.priceChange.toLocaleString()}{currency}
+                        </span>
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">뉴스 감성</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-green-500 h-2 rounded-full"
-                      style={{ width: `${analysisData.sentimentScore * 100}%` }}
-                    />
+              {/* 분석 지표 */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">상세 분석</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">기술적 분석</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-24 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-500 h-2 rounded-full"
+                          style={{ width: `${analysisData.technicalScore * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium">
+                        {(analysisData.technicalScore * 100).toFixed(0)}%
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-sm font-medium">
-                    {(analysisData.sentimentScore * 100).toFixed(0)}%
-                  </span>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">뉴스 감성</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-24 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full"
+                          style={{ width: `${analysisData.sentimentScore * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium">
+                        {(analysisData.sentimentScore * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">거래량 분석</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-24 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-purple-500 h-2 rounded-full"
+                          style={{ width: `${analysisData.volumeScore * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium">
+                        {(analysisData.volumeScore * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">거래량 분석</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-purple-500 h-2 rounded-full"
-                      style={{ width: `${analysisData.volumeScore * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-sm font-medium">
-                    {(analysisData.volumeScore * 100).toFixed(0)}%
-                  </span>
+              {/* 추천 이유 */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">추천 이유</h3>
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <p className="text-gray-700 leading-relaxed">
+                    {recommendation.reason}
+                  </p>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* 추천 이유 */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">추천 이유</h3>
-            <div className="bg-blue-50 rounded-lg p-4">
-              <p className="text-gray-700 leading-relaxed">
-                {recommendation.reason}
-              </p>
-            </div>
-          </div>
-
-          {/* 추천 날짜 */}
-          <div className="flex items-center space-x-2 text-sm text-gray-500">
-            <Calendar className="w-4 h-4" />
-            <span>추천일: {recommendation.recommended_date}</span>
-          </div>
+              {/* 추천 날짜 */}
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <Calendar className="w-4 h-4" />
+                <span>추천일: {recommendation.recommended_date}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, ExternalLink, ArrowUp, ArrowDown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Recommendation, Stock } from '@/types'
 import { formatCurrency, formatPercent, getRecommendationColor, getRecommendationLabel, cn } from '@/lib/utils'
 import { LoadingCard } from './loading-spinner'
 import { StockDetailModal } from './stock-detail-modal'
+import { getCachedStockPrice } from '@/lib/stockApi'
 
 export function Recommendations() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
@@ -14,6 +15,41 @@ export function Recommendations() {
   const [activeTab, setActiveTab] = useState<'US' | 'KR'>('US')
   const [selectedRecommendation, setSelectedRecommendation] = useState<Recommendation | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(3)
+  const [stockPrices, setStockPrices] = useState<Record<string, any>>({})
+  const [priceLoading, setPriceLoading] = useState<Record<string, boolean>>({})
+  const itemsPerLoad = 3
+
+  const fetchStockPrices = async (recs: Recommendation[]) => {
+    const prices: Record<string, any> = {}
+    const loadingStates: Record<string, boolean> = {}
+    
+    for (const rec of recs) {
+      if (!rec.stock) continue
+      
+      const cacheKey = `${rec.stock.market}:${rec.stock.ticker}`
+      loadingStates[cacheKey] = true
+      
+      try {
+        const priceData = await getCachedStockPrice(rec.stock.ticker, rec.stock.market)
+        if (priceData) {
+          prices[cacheKey] = {
+            current: priceData.close,
+            previousClose: priceData.open, 
+            change: priceData.close - priceData.open,
+            changePercent: ((priceData.close - priceData.open) / priceData.open) * 100
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching price for ${rec.stock.ticker}:`, error)
+      } finally {
+        loadingStates[cacheKey] = false
+      }
+    }
+    
+    setStockPrices(prev => ({ ...prev, ...prices }))
+    setPriceLoading(prev => ({ ...prev, ...loadingStates }))
+  }
 
   useEffect(() => {
     fetchRecommendations()
@@ -23,7 +59,6 @@ export function Recommendations() {
     try {
       setLoading(true)
       
-      // 탭별로 다른 Mock 데이터 생성
       const mockRecommendations = activeTab === 'US' ? [
         {
           id: 1,
@@ -36,7 +71,7 @@ export function Recommendations() {
             id: 1,
             ticker: 'AAPL',
             name: 'Apple Inc.',
-            market: 'US' as const,
+            market: 'US',
             created_at: new Date().toISOString()
           }
         },
@@ -51,7 +86,7 @@ export function Recommendations() {
             id: 2,
             ticker: 'MSFT',
             name: 'Microsoft Corporation',
-            market: 'US' as const,
+            market: 'US',
             created_at: new Date().toISOString()
           }
         },
@@ -66,7 +101,7 @@ export function Recommendations() {
             id: 3,
             ticker: 'NVDA',
             name: 'NVIDIA Corporation',
-            market: 'US' as const,
+            market: 'US',
             created_at: new Date().toISOString()
           }
         }
@@ -80,9 +115,9 @@ export function Recommendations() {
           created_at: new Date().toISOString(),
           stock: {
             id: 4,
-            ticker: '삼성전자',
+            ticker: '005930',
             name: '삼성전자',
-            market: 'KR' as const,
+            market: 'KR',
             created_at: new Date().toISOString()
           }
         },
@@ -95,9 +130,9 @@ export function Recommendations() {
           created_at: new Date().toISOString(),
           stock: {
             id: 5,
-            ticker: 'LG에너지솔루션',
+            ticker: '373220',
             name: 'LG에너지솔루션',
-            market: 'KR' as const,
+            market: 'KR',
             created_at: new Date().toISOString()
           }
         },
@@ -110,15 +145,16 @@ export function Recommendations() {
           created_at: new Date().toISOString(),
           stock: {
             id: 6,
-            ticker: '삼성바이오로직스',
+            ticker: '207940',
             name: '삼성바이오로직스',
-            market: 'KR' as const,
+            market: 'KR',
             created_at: new Date().toISOString()
           }
         }
       ]
       
       setRecommendations(mockRecommendations)
+      await fetchStockPrices(mockRecommendations)
     } catch (error) {
       console.error('Error fetching recommendations:', error)
     } finally {
@@ -140,6 +176,53 @@ export function Recommendations() {
     if (score >= 0.7) return <TrendingUp className="w-4 h-4" />
     if (score >= 0.4) return <Minus className="w-4 h-4" />
     return <TrendingDown className="w-4 h-4" />
+  }
+
+  const handleLoadMore = () => {
+    setVisibleCount(prev => prev + itemsPerLoad)
+  }
+
+  const renderPriceInfo = (stock: Stock) => {
+    if (!stock) return null
+    
+    const cacheKey = `${stock.market}:${stock.ticker}`
+    const priceData = stockPrices[cacheKey]
+    const isLoading = priceLoading[cacheKey]
+    
+    if (isLoading) {
+      return (
+        <div className="h-6 flex items-center">
+          <div className="animate-pulse h-4 w-20 bg-gray-200 rounded"></div>
+        </div>
+      )
+    }
+    
+    if (!priceData) {
+      return (
+        <div className="text-sm text-gray-500">가격 정보 없음</div>
+      )
+    }
+    
+    const isPositive = priceData.change >= 0
+    const priceColor = isPositive ? 'text-green-600' : 'text-red-600'
+    const ChangeIcon = isPositive ? ArrowUp : ArrowDown
+    
+    return (
+      <div className="space-y-1">
+        <div className="flex items-baseline space-x-2">
+          <span className="text-lg font-semibold">
+            {formatCurrency(priceData.current, stock.market === 'KR' ? 'KRW' : 'USD')}
+          </span>
+          <span className={`text-sm ${priceColor} flex items-center`}>
+            <ChangeIcon className="w-3 h-3 mr-0.5" />
+            {formatPercent(priceData.changePercent / 100)}
+          </span>
+        </div>
+        <div className="text-xs text-gray-500">
+          전일대비: {formatCurrency(priceData.change, stock.market === 'KR' ? 'KRW' : 'USD', true)}
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -200,57 +283,71 @@ export function Recommendations() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {recommendations.map((rec) => (
-            <div key={rec.id} className="card hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold text-gray-900 text-lg">
-                    {activeTab === 'KR' ? rec.stock?.name : rec.stock?.ticker}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {activeTab === 'KR' ? rec.stock?.ticker : rec.stock?.name}
-                  </p>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {recommendations.slice(0, visibleCount).map((rec) => (
+              <div key={rec.id} className="card hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-lg">
+                      {activeTab === 'KR' ? rec.stock?.name : rec.stock?.ticker}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {activeTab === 'KR' ? rec.stock?.ticker : rec.stock?.name}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    {getTrendIcon(rec.score)}
+                    <span className={cn(
+                      'text-sm font-medium',
+                      getRecommendationColor(rec.score)
+                    )}>
+                      {getRecommendationLabel(rec.score)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-1">
-                  {getTrendIcon(rec.score)}
-                  <span className={cn(
-                    'text-sm font-medium',
-                    getRecommendationColor(rec.score)
-                  )}>
-                    {getRecommendationLabel(rec.score)}
-                  </span>
+
+                <div className="space-y-3">
+                  {rec.stock && renderPriceInfo(rec.stock)}
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">추천 점수</span>
+                    <span className="font-semibold text-gray-900">
+                      {(rec.score * 100).toFixed(1)}점
+                    </span>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-700 line-clamp-3">
+                      {rec.reason}
+                    </p>
+                  </div>
+
+                  <button 
+                    onClick={() => handleDetailClick(rec)}
+                    className="w-full btn-primary text-sm hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center"
+                  >
+                    상세 분석 보기
+                    <ExternalLink className="w-4 h-4 ml-2" />
+                  </button>
                 </div>
               </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">추천 점수</span>
-                  <span className="font-semibold text-gray-900">
-                    {(rec.score * 100).toFixed(1)}점
-                  </span>
-                </div>
-
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-sm text-gray-700 line-clamp-3">
-                    {rec.reason}
-                  </p>
-                </div>
-
-                <button 
-                  onClick={() => handleDetailClick(rec)}
-                  className="w-full btn-primary text-sm hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center"
-                >
-                  상세 분석 보기
-                  <ExternalLink className="w-4 h-4 ml-2" />
-                </button>
-              </div>
+            ))}
+          </div>
+          
+          {visibleCount < recommendations.length && (
+            <div className="text-center">
+              <button
+                onClick={handleLoadMore}
+                className="px-6 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+              >
+                + 더보기 ({recommendations.length - visibleCount}개 더)
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
-      {/* 상세보기 모달 */}
       {selectedRecommendation && (
         <StockDetailModal
           recommendation={selectedRecommendation}
