@@ -20,7 +20,7 @@ export function NewsSection() {
       setLoading(true)
       
       // Mock data for development with real news URLs
-      const mockNews = [
+      const mockNews: News[] = [
         {
           id: 1,
           stock_id: 1,

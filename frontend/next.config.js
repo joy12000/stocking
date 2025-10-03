@@ -8,9 +8,7 @@ const withPWA = require('next-pwa')({
 })
 
 const nextConfig = {
-  experimental: {
-    appDir: true,
-  },
+
   images: {
     domains: ['images.unsplash.com', 'via.placeholder.com'],
   },
