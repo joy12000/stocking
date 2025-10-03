@@ -1,21 +1,19 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm run build",
-  "outputDirectory": "frontend/.next",
-  "installCommand": "cd frontend && npm install",
-  "framework": "nextjs",
+  "builds": [
+    {
+      "src": "frontend/next.config.js",
+      "use": "@vercel/next"
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/daily-analysis",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/data-collection",
+      "schedule": "0 */6 * * *"
     }
-  ],
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL": "@supabase-url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key",
-    "YAHOO_FINANCE_API_KEY": "@yahoo-finance-api-key",
-    "GOOGLE_NEWS_API_KEY": "@google-news-api-key",
-    "AI_SERVER_URL": "@ai-server-url"
-  }
+  ]
 }
