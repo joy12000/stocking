@@ -218,7 +218,7 @@ export function Recommendations() {
           </span>
         </div>
         <div className="text-xs text-gray-500">
-          전일대비: {formatCurrency(priceData.change, stock.market === 'KR' ? 'KRW' : 'USD', true)}
+          전일대비: {formatCurrency(priceData.change, stock.market === 'KR' ? 'KRW' : 'USD')}
         </div>
       </div>
     )
