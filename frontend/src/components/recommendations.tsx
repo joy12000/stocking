@@ -59,7 +59,7 @@ export function Recommendations() {
     try {
       setLoading(true)
       
-      const mockRecommendations = activeTab === 'US' ? [
+      const mockRecommendations: Recommendation[] = [
         {
           id: 1,
           stock_id: 1,
