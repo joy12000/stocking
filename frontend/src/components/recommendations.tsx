@@ -104,8 +104,7 @@ export function Recommendations() {
             market: 'US',
             created_at: new Date().toISOString()
           }
-        }
-      ] : [
+        },
         {
           id: 4,
           stock_id: 4,
