@@ -10,7 +10,7 @@ prophet==1.1.5
 yfinance==0.2.28
 requests==2.31.0
 python-dotenv==1.0.0
-pydantic==2.5.2
+pydantic==2.4.2
 python-multipart==0.0.6
 httpx==0.24.1
 redis==5.0.1
